@@ -1,8 +1,10 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const fs = require("fs");
+const dataAccessLayer = require("./dataAcessLayer");
 const { request } = require("http");
 const { response } = require("express");
+const { ObjectId } = require("mongodb");
+dataAccessLayer.connect();
 
 const app = express();
 
@@ -16,16 +18,16 @@ try {
   console.log("No existing file.");
 }
 
-app.get("/api/products/:id", (request, response) => {
-  const productId = Number(request.params.id);
+app.get("/api/products/:id", async (request, response) => {
+  const productId = request.params.id;
 
-  const product = products.find((p) => {
-    if (productId === p.id) {
-      return true;
-    }
-  });
-
-  if (!product) {
+  const productQuery = {
+    _id: new ObjectId(productId),
+  };
+  let product;
+  try {
+    product = await dataAccessLayer.findOne(productQuery);
+  } catch (error) {
     response.send(`Product with id ${productId} not found!`);
     return;
   }
@@ -33,75 +35,46 @@ app.get("/api/products/:id", (request, response) => {
   response.send(product);
 });
 
-app.get("/api/products", (request, response) => {
+app.get("/api/products", async (request, response) => {
+  const products = await dataAccessLayer.findAll();
+
   response.send(products);
 });
 
-app.post("/api/products", (request, response) => {
+app.post("/api/products", async (request, response) => {
   const body = request.body;
 
-  if (!body.id || !body.name || !body.price) {
-    response.send("Bad Request. Validation Error. Missing id, name, or price.");
+  if (!body.name || !body.price || !body.category) {
+    response.send(
+      "Bad Request. Validation Error. Missing name, price, or category!"
+    );
     return;
   }
-  products.push(body);
-  const jsonPayload = {
-    products: products,
-  };
-  fs.writeFileSync("products.json", JSON.stringify(jsonPayload));
+
+  await dataAccessLayer.insertOne(body);
 
   response.send();
 });
 
-app.put("/api/products/:id", (request, response) => {
-  const productId = Number(request.params.id);
-
-  const product = products.find((p) => {
-    return productId === p.id;
-  });
-
-  if (!product) {
-    response.send(`Product with id ${productId} not found!`);
-    return;
-  }
-
+app.put("/api/products/:id", async (request, response) => {
+  const productId = request.params.id;
   const body = request.body;
-
-  if (body.name) {
-    product.name = body.name;
-  }
-
-  if (body.price) {
-    product.price = body.price;
-  }
-
-  const jsonPayload = {
-    products: products,
+  const productQuery = {
+    _id: new ObjectId(productId),
   };
-  fs.writeFileSync("products.json", JSON.stringify(jsonPayload));
+  await dataAccessLayer.updateOne(productQuery, body);
 
   response.send();
 });
 
-app.delete("/api/products/:id", (request, response) => {
-  const productId = Number(request.params.id);
+app.delete("/api/products/:id", async (request, response) => {
+  const productId = request.params.id;
 
-  const productIndex = products.findIndex((p) => {
-    return productId === p.id;
-  });
-
-  if (productIndex === -1) {
-    response.send(`Product with id ${productId} not found!`);
-    return;
-  }
-
-  products.splice(productIndex, 1);
-
-  const jsonPayload = {
-    products: products,
+  const productQuery = {
+    _id: new ObjectId(productId),
   };
+  await dataAccessLayer.deleteOne(productQuery);
 
-  fs.writeFileSync("products.json", JSON.stringify(jsonPayload));
   response.send();
 });
 
