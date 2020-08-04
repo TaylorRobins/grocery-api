@@ -119,6 +119,10 @@ const updateOne = function (query, newProduct) {
           console.log(error);
           reject(error);
           return;
+        } else if (result.modifiedCount === 0) {
+          console.log("No Document Found");
+          reject("No Document Found");
+          return;
         }
         console.log("SUCCESSFULLY UPDATED DOCUMENT!");
         resolve();
@@ -136,6 +140,10 @@ const deleteOne = function (query) {
       if (error) {
         console.log(error);
         reject(error);
+        return;
+      } else if (result.deletedCount === 0) {
+        console.log("No Document Found");
+        reject("No Document Found");
         return;
       }
       console.log("SUCCESSFULLY DELETED DOCUMENT!");
